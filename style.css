@@ -1,0 +1,270 @@
+@import url('https://fonts.googleapis.com/css2?family=Source+Code+Pro&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,700;1,14..32,700&display=swap');
+
+
+* {
+	box-sizing: border-box;
+}
+
+body {
+	font-family: 'Source Code Pro', monospace;
+	background-color: #e3e3e3;
+	color: #ffffff;
+	margin: 0;
+	padding: 0;
+	overflow-x: hidden;
+}
+
+.container {
+	display: flex;
+	flex-direction: row;
+	height: 100vh;
+	width: 100%;
+}
+
+.code-section {
+	width: 50%;
+	background-color: #cfcece;
+	padding: 10px;
+	gap: 0px;
+	flex-direction: column;
+	display: flex;
+}
+
+.code-section h2 {
+	text-align: center;
+	font-family: "Inter", sans-serif;
+	color: #333435;
+}
+
+.code-head {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding: 10px;
+	background-color: #222327;
+	border-top-left-radius: 20px;
+	border-top-right-radius: 20px;
+	z-index: 2;
+}
+
+.code-title {
+	font-weight: bold;
+	color: #ffffff;
+	font-size: 16px;
+	font-family: 'Inter', sans-serif;
+	padding-left: 7px;
+	padding-top: 2px;
+}
+
+.code-extension {
+	font-family: 'Inter', sans-serif;
+	background-color: #222327;
+	color: #7f7f7f;
+	padding-right: 7px;
+	padding-top: 2px;
+	font-size: 16px;
+}
+
+.code-block {
+	background-color: #302f2d;
+	padding: 10px;
+	border-bottom-left-radius: 5px;
+	border-bottom-right-radius: 5px;
+	overflow: auto;
+	margin: 0;
+}
+
+.keyword {
+	color: #569cd6;
+}
+
+.type {
+	color: #4ec9b0;
+}
+
+.variable {
+	color: #9cdcfe;
+}
+
+.value {
+	color: #ce9178;
+}
+
+.function {
+	color: #dcdcaa;
+}
+
+.operator {
+	color: #b5cea8;
+}
+
+.string {
+	color: #d69d85;
+}
+
+.animation-section {
+	width: 60%;
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	height: 100vh;
+}
+
+#container {
+	width: 100%;
+	height: 100%;
+}
+
+.controls {
+	width: 90%;
+	padding: 15px 20px;
+	border-radius: 10px;
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	align-items: center;
+	justify-content: center;
+	margin: 10px auto;
+}
+
+
+.input-group {
+	display: flex;
+	flex-direction: column-reverse;
+	align-items: center;
+	gap: 10px;
+	align-items: stretch;
+}
+
+
+
+
+.input-group input {
+	font-family: "Inter", sans-serif;
+	padding: 8px 16px;
+	border-radius: 20px;
+	border: none;
+	font-size: 16px;
+	text-align: center;
+	background: #222327;
+	color: #7f7f7f;;
+	max-width: 225px;
+}
+
+input::placeholder {
+	color: #7f7f7f;
+}
+
+.button-group {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	width: auto;
+}
+
+.button-group button,
+.custom-button {
+	white-space: nowrap;
+	max-width: 225px;
+	height: 100%;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: transparent;
+	padding: 8px 16px;
+	border: 2.5px solid #333435;
+	border-radius: 20px;
+	color: #333435;
+	font-size: 15px;
+	cursor: pointer;
+	font-family: "Inter", sans-serif;
+	transition: all 0.2s ease-in;
+	
+}
+
+
+.button-group button:hover {
+	background-color: #333435;
+	cursor: pointer;
+	color: #f0f0f0;
+}
+
+.menu {
+	position: relative;
+}
+
+@media (max-width: 900px) {
+	.container {
+		flex-direction: column;
+	}
+	.code-section,
+	.animation-section {
+		width: 100%;
+		height: 100%;
+	}
+	#container {
+		height: 400px;
+	}
+}
+
+@media (max-width: 600px) {
+	.container {
+		flex-direction: column;
+		height: 100%;
+		width: 100%;
+		margin: 0;
+		padding: 0;
+	}
+
+	.code-section,
+	.animation-section {
+		width: 100%;
+		padding: 10px;
+	}
+
+	.code-section {
+		order: 1;
+	}
+
+	.animation-section {
+		order: 2;
+	}
+
+	#container {
+		height: 300px;
+	}
+
+	.controls {
+		flex-direction: column;
+	align-items: center;
+		width: 100%;
+	}
+
+	.input-group input {
+		width: 100%;
+		max-width: none;
+		box-sizing: border-box;
+	}
+
+	.button-group {
+		flex-direction: column;
+		gap: 10px;
+		width: 100%;
+	}
+
+	.button-group button {
+		width: 100%;
+		max-width: none;
+	}
+}
+
+#container canvas {
+	width: 100%;
+}
+
+.animation-section {
+	padding: 0 !important;
+}
