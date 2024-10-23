@@ -34,23 +34,45 @@ gridHelper.rotation.x = Math.PI / 2;
 gridHelper.position.z = -10;
 scene.add(gridHelper);
 
+const baseOpacity = 0.2;
+
 const materials = {
-	default: new THREE.MeshPhongMaterial({ color: 0x0080ff, shininess: 100 }),
-	comparing: new THREE.MeshPhongMaterial({ color: 0xffd700, shininess: 100 }),
-	swapped: new THREE.MeshPhongMaterial({ color: 0xff0000, shininess: 100 }),
-	sorted: new THREE.MeshPhongMaterial({ color: 0x00ff00, shininess: 100 }),
+	default: new THREE.MeshPhongMaterial({
+		color: 0x0080ff,
+		shininess: 100,
+		transparent: true,
+		opacity: baseOpacity,
+	}),
+	comparing: new THREE.MeshPhongMaterial({
+		color: 0xffd700,
+		shininess: 100,
+		transparent: true,
+		opacity: baseOpacity,
+	}),
+	swapped: new THREE.MeshPhongMaterial({
+		color: 0xff0000,
+		shininess: 100,
+		transparent: true,
+		opacity: baseOpacity,
+	}),
+	sorted: new THREE.MeshPhongMaterial({
+		color: 0x00ff00,
+		shininess: 100,
+		transparent: true,
+		opacity: baseOpacity,
+	}),
 };
 
 let isAnimating = false;
 let font;
 let model;
 const boxes = [];
-const labels = []; // Массив для хранения объектов подписей
+const labels = [];
 const textMeshes = [];
 let values = [];
 let animations = [];
 let currentStep = 0;
-let isTransparent = false;
+let isTransparent = true;
 
 const fontLoader = new FontLoader();
 fontLoader.load(
@@ -95,9 +117,8 @@ function addLabel(value, box, textSize = 0.7) {
 	textMesh.castShadow = true;
 	textMesh.receiveShadow = true;
 
-	// Размещаем цифры внутри коробки
 	textMesh.position.set(0, 0.2, 0);
-	textMesh.name = 'TextMesh'; // Устанавливаем имя, чтобы исключить из изменения прозрачности
+	textMesh.name = 'TextMesh';
 
 	box.add(textMesh);
 }
@@ -109,7 +130,7 @@ function createBoxes() {
 			model = gltf.scene;
 
 			const numBoxes = 8;
-			const maxValue = 15;
+			const maxValue = 999;
 			const spacing = 3.5;
 			const startX = -((numBoxes - 1) * spacing) / 2;
 
@@ -119,7 +140,7 @@ function createBoxes() {
 				const box = model.clone();
 				box.position.set(startX + i * spacing, 0, 0);
 
-				const scaleFactor = 0.8;
+				const scaleFactor = 1;
 				box.scale.set(scaleFactor, scaleFactor, scaleFactor);
 
 				applyMaterial(box, materials['default']);
@@ -132,6 +153,7 @@ function createBoxes() {
 				boxes.push(box);
 			}
 
+			updateCodeBlock();
 			createBubbleSortAnimations();
 			animateScene();
 		},
@@ -140,6 +162,22 @@ function createBoxes() {
 			console.error(error);
 		}
 	);
+}
+
+function updateCodeBlock() {
+	const codeBlock = document.getElementById('codeBlock');
+	const arrayValues = boxes.map((box) => {
+		const labelMesh = box.children.find((child) => child.name === 'TextMesh');
+		return labelMesh ? labelMesh.geometry.parameters.text : '0';
+	});
+	const arrayInit = arrayValues.map((val) => `<span class="value">${val}</span>`).join(', ');
+	const arrayInitLine = `<span class="type">int</span> <span class="variable">array</span>[] = {${arrayInit}};`;
+	const codeLines = codeBlock.innerHTML.split('\n');
+	const arrayLineIndex = codeLines.findIndex((line) => line.includes('int array[]'));
+	if (arrayLineIndex !== -1) {
+		codeLines[arrayLineIndex] = arrayInitLine;
+		codeBlock.innerHTML = codeLines.join('\n');
+	}
 }
 
 function createBubbleSortAnimations() {
@@ -159,17 +197,14 @@ function createBubbleSortAnimations() {
 					indices: [j, j + 1],
 				});
 
-				// Swap values
 				[arr[j], arr[j + 1]] = [arr[j + 1], arr[j]];
 			}
 		}
-		// Mark as sorted
 		animations.push({
 			type: 'sorted',
 			index: n - i - 1,
 		});
 	}
-	// Mark the first element as sorted
 	animations.push({
 		type: 'sorted',
 		index: 0,
@@ -190,7 +225,7 @@ function playAnimations() {
 		}
 
 		const animation = animations[animationIndex];
-		const duration = 500; // Ускоряем анимацию
+		const duration = 500;
 
 		if (animation.type === 'compare') {
 			const [i, j] = animation.indices;
@@ -198,6 +233,7 @@ function playAnimations() {
 
 			setTimeout(() => {
 				resetBoxes([i, j]);
+				updateCodeBlock();
 				animationIndex++;
 				nextAnimation();
 			}, duration);
@@ -205,7 +241,6 @@ function playAnimations() {
 			const [i, j] = animation.indices;
 			highlightBoxes([i, j], materials.swapped);
 
-			// Swap positions
 			const boxA = boxes[i];
 			const boxB = boxes[j];
 
@@ -214,11 +249,11 @@ function playAnimations() {
 
 			animateSwap(boxA, boxB, posA, posB, duration);
 
-			// Swap boxes in array
 			[boxes[i], boxes[j]] = [boxes[j], boxes[i]];
 
 			setTimeout(() => {
 				resetBoxes([i, j]);
+				updateCodeBlock();
 				animationIndex++;
 				nextAnimation();
 			}, duration);
@@ -227,6 +262,7 @@ function playAnimations() {
 			highlightBoxes([index], materials.sorted);
 
 			setTimeout(() => {
+				updateCodeBlock();
 				animationIndex++;
 				nextAnimation();
 			}, duration);
@@ -240,7 +276,9 @@ function highlightBoxes(indices, material) {
 	indices.forEach((index) => {
 		boxes[index].traverse(function (node) {
 			if (node.isMesh && node.name !== 'TextMesh') {
-				node.material = material.clone();
+				node.material.color.set(material.color);
+				node.material.opacity = baseOpacity;
+				node.material.transparent = true;
 			}
 		});
 	});
@@ -250,10 +288,9 @@ function resetBoxes(indices) {
 	indices.forEach((index) => {
 		boxes[index].traverse(function (node) {
 			if (node.isMesh && node.name !== 'TextMesh') {
-				node.material = materials.default.clone();
-				// Сбрасываем прозрачность, если была изменена
-				node.material.transparent = isTransparent;
-				node.material.opacity = isTransparent ? 0.2 : 1;
+				node.material.color.set(materials.default.color);
+				node.material.opacity = baseOpacity;
+				node.material.transparent = true;
 			}
 		});
 	});
@@ -292,7 +329,6 @@ function onWindowResize() {
 	renderer.setSize(containerWidth, containerHeight);
 }
 
-// Обработчики для вращения коробок
 let raycaster = new THREE.Raycaster();
 let mouseVector = new THREE.Vector2();
 let selectedBox = null;
@@ -317,7 +353,6 @@ function onPointerDown(event) {
 
 	raycaster.setFromCamera(mouseVector, camera);
 
-	// Интересуемые объекты - только коробки
 	const intersects = raycaster.intersectObjects(boxes, true);
 
 	if (intersects.length > 0) {
@@ -378,7 +413,6 @@ renderer.domElement.addEventListener('touchstart', onPointerDown, false);
 renderer.domElement.addEventListener('touchmove', onPointerMove, false);
 renderer.domElement.addEventListener('touchend', onPointerUp, false);
 
-// Основной анимационный цикл
 function animateScene() {
 	requestAnimationFrame(animateScene);
 	renderer.render(scene, camera);
@@ -388,7 +422,6 @@ animateScene();
 function resetScene() {
 	isAnimating = false;
 
-	// Удаляем все коробки и тексты
 	boxes.forEach((box) => {
 		scene.remove(box);
 	});
@@ -396,7 +429,6 @@ function resetScene() {
 	values.length = 0;
 	animations.length = 0;
 
-	// Сбрасываем переменные
 	currentStep = 0;
 
 	document.getElementById('resetButton').style.display = 'none';
@@ -405,25 +437,23 @@ function resetScene() {
 	createBoxes();
 }
 
-// Функция для переключения прозрачности коробок
 function toggleOpacity() {
 	isTransparent = !isTransparent;
+	const newOpacity = isTransparent ? baseOpacity : 1;
 
 	boxes.forEach((box) => {
 		box.traverse(function (child) {
 			if (child.isMesh && child.name !== 'TextMesh') {
 				child.material.transparent = isTransparent;
-				child.material.opacity = isTransparent ? 0.2 : 1;
+				child.material.opacity = newOpacity;
 				child.material.needsUpdate = true;
 			}
 		});
 	});
 }
 
-// Добавляем обработчик для кнопки прозрачности
 document.getElementById('toggleOpacityButton').addEventListener('click', toggleOpacity);
 
-// Кнопки для запуска анимации и сброса
 const startButton = document.getElementById('startButton');
 startButton.addEventListener('click', () => {
 	playAnimations();
