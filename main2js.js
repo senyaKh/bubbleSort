@@ -50,6 +50,7 @@ const textMeshes = [];
 let values = [];
 let animations = [];
 let currentStep = 0;
+let isTransparent = false;
 
 const fontLoader = new FontLoader();
 fontLoader.load(
@@ -64,7 +65,7 @@ const loader = new GLTFLoader();
 
 function applyMaterial(box, material) {
 	box.traverse(function (node) {
-		if (node.isMesh) {
+		if (node.isMesh && node.name !== 'TextMesh') {
 			node.material = material.clone();
 			node.castShadow = true;
 			node.receiveShadow = true;
@@ -72,7 +73,7 @@ function applyMaterial(box, material) {
 	});
 }
 
-function addLabel(value, box, textSize = 1) {
+function addLabel(value, box, textSize = 0.7) {
 	if (!font) return;
 	const textGeometry = new TextGeometry(value.toString(), {
 		font: font,
@@ -94,7 +95,10 @@ function addLabel(value, box, textSize = 1) {
 	textMesh.castShadow = true;
 	textMesh.receiveShadow = true;
 
-	textMesh.position.set(0, 1.5, 0);
+	// Размещаем цифры внутри коробки
+	textMesh.position.set(0, 0.2, 0);
+	textMesh.name = 'TextMesh'; // Устанавливаем имя, чтобы исключить из изменения прозрачности
+
 	box.add(textMesh);
 }
 
@@ -186,7 +190,7 @@ function playAnimations() {
 		}
 
 		const animation = animations[animationIndex];
-		const duration = 1000;
+		const duration = 500; // Ускоряем анимацию
 
 		if (animation.type === 'compare') {
 			const [i, j] = animation.indices;
@@ -235,7 +239,7 @@ function playAnimations() {
 function highlightBoxes(indices, material) {
 	indices.forEach((index) => {
 		boxes[index].traverse(function (node) {
-			if (node.isMesh && !node.material.name.includes('TextMaterial')) {
+			if (node.isMesh && node.name !== 'TextMesh') {
 				node.material = material.clone();
 			}
 		});
@@ -245,8 +249,11 @@ function highlightBoxes(indices, material) {
 function resetBoxes(indices) {
 	indices.forEach((index) => {
 		boxes[index].traverse(function (node) {
-			if (node.isMesh && !node.material.name.includes('TextMaterial')) {
+			if (node.isMesh && node.name !== 'TextMesh') {
 				node.material = materials.default.clone();
+				// Сбрасываем прозрачность, если была изменена
+				node.material.transparent = isTransparent;
+				node.material.opacity = isTransparent ? 0.2 : 1;
 			}
 		});
 	});
@@ -397,6 +404,24 @@ function resetScene() {
 
 	createBoxes();
 }
+
+// Функция для переключения прозрачности коробок
+function toggleOpacity() {
+	isTransparent = !isTransparent;
+
+	boxes.forEach((box) => {
+		box.traverse(function (child) {
+			if (child.isMesh && child.name !== 'TextMesh') {
+				child.material.transparent = isTransparent;
+				child.material.opacity = isTransparent ? 0.2 : 1;
+				child.material.needsUpdate = true;
+			}
+		});
+	});
+}
+
+// Добавляем обработчик для кнопки прозрачности
+document.getElementById('toggleOpacityButton').addEventListener('click', toggleOpacity);
 
 // Кнопки для запуска анимации и сброса
 const startButton = document.getElementById('startButton');
