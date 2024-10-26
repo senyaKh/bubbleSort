@@ -30,6 +30,10 @@ body {
 	flex-direction: column;
 	display: flex;
 }
+.code-section p{ 
+color: #333435;
+font-family: "Inter", sans-serif;
+}
 
 .code-section h2 {
 	text-align: center;
