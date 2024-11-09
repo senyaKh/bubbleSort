@@ -33,9 +33,22 @@ body {
 	flex-direction: column;
 	display: flex;
 }
-.code-section p{ 
-color: #333435;
-font-family: "Inter", sans-serif;
+.code-block::-webkit-scrollbar {
+	width: 8px; /* Ширина скроллбара */
+}
+
+.code-block::-webkit-scrollbar-track {
+	background: #302f2d; /* Цвет дорожки */
+}
+
+.code-block::-webkit-scrollbar-thumb {
+	background-color: grey; /* Цвет бегунка */
+	border-radius: 10px; /* Округлость бегунка */
+}
+
+.code-section p {
+	color: #333435;
+	font-family: 'Inter', sans-serif;
 }
 
 .code-section h2 {
