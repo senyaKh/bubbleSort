@@ -4,6 +4,9 @@ import { FontLoader } from 'three/addons/loaders/FontLoader.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
 
+// Подключаем Cannon.js для физики
+import * as CANNON from 'https://cdn.jsdelivr.net/npm/cannon-es@0.20.0/dist/cannon-es.js';
+
 const scene = new THREE.Scene();
 
 const container = document.getElementById('container');
@@ -26,7 +29,7 @@ const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
 directionalLight.position.set(5, 10, 7.5);
 scene.add(directionalLight);
 
-const gridSize = 100;
+const gridSize = 200;
 const gridDivisions = 40;
 const gridHelper = new THREE.GridHelper(gridSize, gridDivisions, 0xa6a6a6, 0xa6a6a6);
 gridHelper.position.y = -1;
@@ -74,16 +77,134 @@ let animations = [];
 let currentStep = 0;
 let isTransparent = true;
 
+// Создаем физический мир
+const world = new CANNON.World();
+world.gravity.set(0, 0, 0); // Отсутствие гравитации
+
+// Создаем материал для пузырей с высокой упругостью
+const bubbleMaterial = new CANNON.Material('bubbleMaterial');
+const bubbleContactMaterial = new CANNON.ContactMaterial(bubbleMaterial, bubbleMaterial, {
+	friction: 0.0,
+	restitution: 1.0,
+});
+world.addContactMaterial(bubbleContactMaterial);
+
+// Загрузка модели пузыря для фона
+let bubbleBackgroundModel;
+const backgroundBubbles = [];
+const bubbleBackgroundBodies = [];
+const bubbleBackgroundLoader = new GLTFLoader();
+
+// Загрузка модели пузыря для сортировки
+let bubbleSortModel;
+const sortingBubbles = [];
+const bubbleSortLoader = new GLTFLoader();
+
+function createBackgroundBubbles() {
+	bubbleBackgroundLoader.load(
+		'model/free_bubble_kit.glb',
+		function (gltf) {
+			bubbleBackgroundModel = gltf.scene;
+
+			// Создаем множество пузырей на фоне
+			for (let i = 0; i < 100; i++) {
+				const bubble = bubbleBackgroundModel.clone();
+
+				// Случайная позиция пузыря за коробками
+				const posX = (Math.random() - 0.5) * 100;
+				const posY = (Math.random() - 0.5) * 50;
+				const posZ = -Math.random() * 50 - 10; // Между -10 и -60 (позади коробок)
+				bubble.position.set(posX, posY, posZ);
+
+				// Случайный масштаб пузыря (уменьшенный)
+				const scale = Math.random() * 1 + 0.1; // От 0.1 до 0.4
+				bubble.scale.set(scale, scale, scale);
+
+				// Прозрачность пузыря
+				bubble.traverse(function (child) {
+					if (child.isMesh) {
+						child.material.transparent = true;
+						child.material.opacity = 0.5;
+					}
+				});
+
+				scene.add(bubble);
+				backgroundBubbles.push(bubble);
+
+				// Создаем физическое тело для пузыря
+				const shape = new CANNON.Sphere(scale * 0.5);
+				const body = new CANNON.Body({
+					mass: 1,
+					shape: shape,
+					position: new CANNON.Vec3(posX, posY, posZ),
+					material: bubbleMaterial,
+				});
+				// Случайная начальная скорость (увеличена для движения)
+				body.velocity.set(
+					(Math.random() - 0.5) * 0.5,
+					(Math.random() - 0.5) * 0.5,
+					(Math.random() - 0.5) * 0.5
+				);
+				world.addBody(body);
+				bubbleBackgroundBodies.push(body);
+			}
+		},
+		undefined,
+		function (error) {
+			console.error(error);
+		}
+	);
+}
+
+function animateBackgroundBubbles() {
+	world.step(1 / 60);
+
+	for (let i = 0; i < backgroundBubbles.length; i++) {
+		const bubble = backgroundBubbles[i];
+		const body = bubbleBackgroundBodies[i];
+
+		// Обновляем позицию пузыря из физического тела
+		bubble.position.copy(body.position);
+		bubble.quaternion.copy(body.quaternion);
+
+		// Отражаем от границ сцены
+		const boundary = 50;
+		if (body.position.x > boundary || body.position.x < -boundary) {
+			body.velocity.x *= -1;
+		}
+		if (body.position.y > boundary || body.position.y < -boundary) {
+			body.velocity.y *= -1;
+		}
+		if (body.position.z > -10 || body.position.z < -60) {
+			body.velocity.z *= -1;
+		}
+	}
+}
+
 const fontLoader = new FontLoader();
 fontLoader.load(
 	'https://threejs.org/examples/fonts/helvetiker_regular.typeface.json',
 	function (loadedFont) {
 		font = loadedFont;
 		createBoxes();
+		// Создаем фоновый пузырь
+		createBackgroundBubbles();
 	}
 );
 
 const loader = new GLTFLoader();
+
+// Загрузка модели пузыря для сортировки
+bubbleSortLoader.load(
+	'model/free_bubble_kit.glb',
+	function (gltf) {
+		bubbleSortModel = gltf.scene;
+	},
+	undefined,
+	function (error) {
+		console.error(error);
+	}
+);
 
 function applyMaterial(box, material) {
 	box.traverse(function (node) {
@@ -225,11 +346,14 @@ function playAnimations() {
 		}
 
 		const animation = animations[animationIndex];
-		const duration = 500;
+		const duration = 1000; // Сделаем анимацию медленнее
 
 		if (animation.type === 'compare') {
 			const [i, j] = animation.indices;
 			highlightBoxes([i, j], materials.comparing);
+
+			// Добавляем пузырь между сравниваемыми элементами
+			createSortingBubble(i, j);
 
 			setTimeout(() => {
 				resetBoxes([i, j]);
@@ -316,6 +440,57 @@ function animateSwap(boxA, boxB, startPosA, startPosB, duration) {
 	}
 
 	animatePosition();
+}
+
+function createSortingBubble(i, j) {
+	if (!bubbleSortModel) return;
+
+	const bubble = bubbleSortModel.clone();
+
+	// Позиция пузыря над сравниваемыми элементами
+	const posX = (boxes[i].position.x + boxes[j].position.x) / 2;
+	const posY = boxes[i].position.y + 3;
+
+	bubble.position.set(posX, posY, 0);
+
+	// Масштаб пузыря
+	const scale = 0.5;
+	bubble.scale.set(scale, scale, scale);
+
+	// Прозрачность пузыря
+	bubble.traverse(function (child) {
+		if (child.isMesh) {
+			child.material.transparent = true;
+			child.material.opacity = 0.8;
+		}
+	});
+
+	scene.add(bubble);
+	sortingBubbles.push(bubble);
+
+	// Анимация пузыря (подъем вверх и исчезновение)
+	const duration = 2000; // Замедляем анимацию пузыря
+	const startTime = performance.now();
+
+	function animateBubble() {
+		const currentTime = performance.now();
+		const elapsed = currentTime - startTime;
+		const progress = elapsed / duration;
+
+		bubble.position.y += 0.01; // Медленнее поднимается
+
+		if (progress < 1) {
+			requestAnimationFrame(animateBubble);
+		} else {
+			scene.remove(bubble);
+			const index = sortingBubbles.indexOf(bubble);
+			if (index > -1) {
+				sortingBubbles.splice(index, 1);
+			}
+		}
+	}
+
+	animateBubble();
 }
 
 window.addEventListener('resize', onWindowResize, false);
@@ -415,6 +590,10 @@ renderer.domElement.addEventListener('touchend', onPointerUp, false);
 
 function animateScene() {
 	requestAnimationFrame(animateScene);
+
+	// Анимация фоновых пузырей
+	animateBackgroundBubbles();
+
 	renderer.render(scene, camera);
 }
 animateScene();
