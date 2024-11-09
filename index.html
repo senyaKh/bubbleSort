@@ -16,7 +16,8 @@
 	<body>
 		<div class="container">
 			<div class="code-section">
-				<h2>Сортировка Пузырьком в C++</h2>
+				<h2>Сортировка элементов одномерного статического массива методом "Пузырька" C++</h2>
+				<p>Задача: Отсортировать элементы одномерного статического массива методом "Пузырька"</p>
 				<div class="code-head">
 					<div class="code-title">Code</div>
 					<div class="code-extension">.cpp</div>
@@ -27,9 +28,9 @@
 <span class="keyword">#include</span> &lt;iostream&gt;
 <span class="keyword">using</span> <span class="keyword">namespace</span> std;
 
-<span class="keyword">void</span> <span class="function">bubbleSort</span>(<span class="type">int</span> <span class="variable">arr</span>[], <span class="type">int</span> <span class="variable">n</span>) {
-    <span class="keyword">for</span> (<span class="type">int</span> <span class="variable">i</span> = <span class="value">0</span>; <span class="variable">i</span> &lt; <span class="variable">n</span> - <span class="value">1</span>; <span class="variable">i</span>++) {
-        <span class="keyword">for</span> (<span class="type">int</span> <span class="variable">j</span> = <span class="value">0</span>; <span class="variable">j</span> &lt; <span class="variable">n</span> - <span class="variable">i</span> - <span class="value">1</span>; <span class="variable">j</span>++) {
+<span class="keyword">void</span> <span class="function">bubbleSort</span>(<span class="type">int</span> <span class="variable">arr</span>[], <span class="type">int</span> <span class="variable">size</span>) {
+    <span class="keyword">for</span> (<span class="type">int</span> <span class="variable">i</span> = <span class="value">0</span>; <span class="variable">i</span> &lt; <span class="variable">size</span> - <span class="value">1</span>; <span class="variable">i</span>++) {
+        <span class="keyword">for</span> (<span class="type">int</span> <span class="variable">j</span> = <span class="value">0</span>; <span class="variable">j</span> &lt; <span class="variable">size</span> - <span class="variable">i</span> - <span class="value">1</span>; <span class="variable">j</span>++) {
             <span class="keyword">if</span> (<span class="variable">arr</span>[<span class="variable">j</span>] &gt; <span class="variable">arr</span>[<span class="variable">j</span> + <span class="value">1</span>]) {
                 <span class="type">int</span> <span class="variable">temp</span> = <span class="variable">arr</span>[<span class="variable">j</span>];
                 <span class="variable">arr</span>[<span class="variable">j</span>] = <span class="variable">arr</span>[<span class="variable">j</span> + <span class="value">1</span>];
@@ -41,9 +42,9 @@
 
 <span class="keyword">int</span> <span class="function">main</span>() {
     <span class="type">int</span> <span class="variable">array</span>[] = {<span class="value">5</span>, <span class="value">2</span>, <span class="value">9</span>, <span class="value">1</span>, <span class="value">5</span>, <span class="value">6</span>};
-    <span class="type">int</span> <span class="variable">n</span> = <span class="keyword">sizeof</span>(<span class="variable">array</span>) / <span class="keyword">sizeof</span>(<span class="variable">array</span>[<span class="value">0</span>]);
-    <span class="function">bubbleSort</span>(<span class="variable">array</span>, <span class="variable">n</span>);
-    <span class="keyword">for</span>(<span class="type">int</span> <span class="variable">i</span> = <span class="value">0</span>; <span class="variable">i</span> &lt; <span class="variable">n</span>; <span class="variable">i</span>++) {
+    <span class="type">int</span> <span class="variable">size</span> = <span class="keyword">sizeof</span>(<span class="variable">array</span>) / <span class="keyword">sizeof</span>(<span class="variable">array</span>[<span class="value">0</span>]);
+    <span class="function">bubbleSort</span>(<span class="variable">array</span>, <span class="variable">size</span>);
+    <span class="keyword">for</span>(<span class="type">int</span> <span class="variable">i</span> = <span class="value">0</span>; <span class="variable">i</span> &lt; <span class="variable">size</span>; <span class="variable">i</span>++) {
         <span class="keyword">cout</span> &lt;&lt; <span class="variable">array</span>[<span class="variable">i</span>] &lt;&lt; <span class="string">" "</span>;
     }
     <span class="keyword">return</span> <span class="value">0</span>;
