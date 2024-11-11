@@ -6,6 +6,7 @@ import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
 
 // Подключаем Cannon.js для физики
 import * as CANNON from 'https://cdn.jsdelivr.net/npm/cannon-es@0.20.0/dist/cannon-es.js';
+import * as TWEEN from 'https://cdnjs.cloudflare.com/ajax/libs/tween.js/18.6.4/tween.esm.js';
 
 const scene = new THREE.Scene();
 
@@ -97,7 +98,6 @@ const bubbleBackgroundLoader = new GLTFLoader();
 
 // Загрузка модели пузыря для сортировки
 let bubbleSortModel;
-const sortingBubbles = [];
 const bubbleSortLoader = new GLTFLoader();
 
 function createBackgroundBubbles() {
@@ -116,8 +116,8 @@ function createBackgroundBubbles() {
 				const posZ = -Math.random() * 50 - 10; // Между -10 и -60 (позади коробок)
 				bubble.position.set(posX, posY, posZ);
 
-				// Случайный масштаб пузыря (уменьшенный)
-				const scale = Math.random() * 1 + 0.1; // От 0.1 до 0.4
+				// Увеличенный масштаб пузырей
+				const scale = Math.random() * 1 + 0.5; // От 0.5 до 1.5
 				bubble.scale.set(scale, scale, scale);
 
 				// Прозрачность пузыря
@@ -139,11 +139,11 @@ function createBackgroundBubbles() {
 					position: new CANNON.Vec3(posX, posY, posZ),
 					material: bubbleMaterial,
 				});
-				// Случайная начальная скорость (увеличена для движения)
+				// Случайная начальная скорость
 				body.velocity.set(
-					(Math.random() - 0.5) * 0.5,
-					(Math.random() - 0.5) * 0.5,
-					(Math.random() - 0.5) * 0.5
+					(Math.random() - 0.5) * 0.2,
+					(Math.random() - 0.5) * 0.2,
+					(Math.random() - 0.5) * 0.2
 				);
 				world.addBody(body);
 				bubbleBackgroundBodies.push(body);
@@ -346,14 +346,11 @@ function playAnimations() {
 		}
 
 		const animation = animations[animationIndex];
-		const duration = 1000; // Сделаем анимацию медленнее
+		const duration = 1200; // Сделаем анимацию немного быстрее
 
 		if (animation.type === 'compare') {
 			const [i, j] = animation.indices;
 			highlightBoxes([i, j], materials.comparing);
-
-			// Добавляем пузырь между сравниваемыми элементами
-			createSortingBubble(i, j);
 
 			setTimeout(() => {
 				resetBoxes([i, j]);
@@ -368,19 +365,15 @@ function playAnimations() {
 			const boxA = boxes[i];
 			const boxB = boxes[j];
 
-			const posA = boxA.position.x;
-			const posB = boxB.position.x;
+			// Обновляем массив boxes после завершения анимации
+			animateBubbleSwap(boxA, boxB, i, j, duration, () => {
+				[boxes[i], boxes[j]] = [boxes[j], boxes[i]];
 
-			animateSwap(boxA, boxB, posA, posB, duration);
-
-			[boxes[i], boxes[j]] = [boxes[j], boxes[i]];
-
-			setTimeout(() => {
 				resetBoxes([i, j]);
 				updateCodeBlock();
 				animationIndex++;
 				nextAnimation();
-			}, duration);
+			});
 		} else if (animation.type === 'sorted') {
 			const index = animation.index;
 			highlightBoxes([index], materials.sorted);
@@ -420,42 +413,94 @@ function resetBoxes(indices) {
 	});
 }
 
-function animateSwap(boxA, boxB, startPosA, startPosB, duration) {
-	const startTime = performance.now();
+function animateBubbleSwap(boxA, boxB, indexA, indexB, duration, onComplete) {
+	const startPosA = boxA.position.clone();
+	const startPosB = boxB.position.clone();
 
-	function animatePosition() {
-		const currentTime = performance.now();
-		const elapsed = currentTime - startTime;
-		const progress = Math.min(elapsed / duration, 1);
+	const bubbleY = startPosA.y + 2; // Высота подъема для пузыря
+	const downY = startPosB.y - 2; // Низ для коробки B
 
-		const newX_A = THREE.MathUtils.lerp(startPosA, startPosB, progress);
-		const newX_B = THREE.MathUtils.lerp(startPosB, startPosA, progress);
+	// Создаем группу для пузыря и коробки A
+	const bubbleGroup = new THREE.Group();
+	bubbleGroup.position.copy(startPosA);
 
-		boxA.position.x = newX_A;
-		boxB.position.x = newX_B;
+	// Создаем пузырь и добавляем в группу
+	const bubble = createBubbleAt(0, 0, 0); // позиция относительно bubbleGroup
+	bubbleGroup.add(bubble);
 
-		if (progress < 1) {
-			requestAnimationFrame(animatePosition);
-		}
-	}
+	// Устанавливаем масштаб пузыря так, чтобы он содержал коробку
+	const bubbleScale = 2.5; // Подберите нужное значение
+	bubble.scale.set(bubbleScale, bubbleScale, bubbleScale);
 
-	animatePosition();
+	// Добавляем коробку A в группу
+	boxA.parent.remove(boxA);
+	bubbleGroup.add(boxA);
+
+	// Центрируем коробку внутри пузыря
+	// Вычисляем размеры коробки и пузыря
+	const boxBBox = new THREE.Box3().setFromObject(boxA);
+	const boxCenter = boxBBox.getCenter(new THREE.Vector3());
+	boxA.position.sub(boxCenter); // Центрируем коробку относительно (0,0,0)
+
+	// Поднимаем коробку вверх, чтобы она была в центре пузыря по вертикали
+	const bubbleBBox = new THREE.Box3().setFromObject(bubble);
+	const bubbleHeight = bubbleBBox.max.y - bubbleBBox.min.y;
+	const boxHeight = boxBBox.max.y - boxBBox.min.y;
+	const verticalOffset = (bubbleHeight - boxHeight) / 2;
+
+	boxA.position.y += verticalOffset;
+
+	// Добавляем группу в сцену
+	scene.add(bubbleGroup);
+
+	// Анимируем подъем группы
+	new TWEEN.Tween(bubbleGroup.position)
+		.to({ y: bubbleY }, duration * 0.25)
+		.easing(TWEEN.Easing.Quadratic.Out)
+		.start()
+		.onComplete(() => {
+			// Анимируем движение группы к позиции B
+			new TWEEN.Tween(bubbleGroup.position)
+				.to({ x: startPosB.x }, duration * 0.5)
+				.easing(TWEEN.Easing.Quadratic.InOut)
+				.start()
+				.onComplete(() => {
+					// Анимируем опускание группы
+					new TWEEN.Tween(bubbleGroup.position)
+						.to({ y: startPosB.y }, duration * 0.25)
+						.easing(TWEEN.Easing.Quadratic.In)
+						.start()
+						.onComplete(() => {
+							// Убираем коробку A из группы и возвращаем в сцену
+							bubbleGroup.remove(boxA);
+							boxA.position.copy(bubbleGroup.position);
+							scene.add(boxA);
+
+							// Удаляем группу с пузырем
+							scene.remove(bubbleGroup);
+
+							onComplete();
+						});
+				});
+		});
+
+	// Анимируем коробку B вниз и влево
+	new TWEEN.Tween(boxB.position)
+		.to({ x: startPosA.x, y: downY }, duration)
+		.easing(TWEEN.Easing.Quadratic.InOut)
+		.start()
+		.onComplete(() => {
+			// Анимируем подъем коробки B
+			new TWEEN.Tween(boxB.position)
+				.to({ y: startPosB.y }, duration * 0.25)
+				.easing(TWEEN.Easing.Quadratic.Out)
+				.start();
+		});
 }
 
-function createSortingBubble(i, j) {
+function createBubbleAt(x, y, z) {
 	if (!bubbleSortModel) return;
-
 	const bubble = bubbleSortModel.clone();
-
-	// Позиция пузыря над сравниваемыми элементами
-	const posX = (boxes[i].position.x + boxes[j].position.x) / 2;
-	const posY = boxes[i].position.y + 3;
-
-	bubble.position.set(posX, posY, 0);
-
-	// Масштаб пузыря
-	const scale = 0.5;
-	bubble.scale.set(scale, scale, scale);
 
 	// Прозрачность пузыря
 	bubble.traverse(function (child) {
@@ -465,32 +510,12 @@ function createSortingBubble(i, j) {
 		}
 	});
 
-	scene.add(bubble);
-	sortingBubbles.push(bubble);
+	// Центрируем пузырь
+	const bbox = new THREE.Box3().setFromObject(bubble);
+	const center = bbox.getCenter(new THREE.Vector3());
+	bubble.position.set(-center.x, -center.y, -center.z);
 
-	// Анимация пузыря (подъем вверх и исчезновение)
-	const duration = 2000; // Замедляем анимацию пузыря
-	const startTime = performance.now();
-
-	function animateBubble() {
-		const currentTime = performance.now();
-		const elapsed = currentTime - startTime;
-		const progress = elapsed / duration;
-
-		bubble.position.y += 0.01; // Медленнее поднимается
-
-		if (progress < 1) {
-			requestAnimationFrame(animateBubble);
-		} else {
-			scene.remove(bubble);
-			const index = sortingBubbles.indexOf(bubble);
-			if (index > -1) {
-				sortingBubbles.splice(index, 1);
-			}
-		}
-	}
-
-	animateBubble();
+	return bubble;
 }
 
 window.addEventListener('resize', onWindowResize, false);
@@ -593,6 +618,9 @@ function animateScene() {
 
 	// Анимация фоновых пузырей
 	animateBackgroundBubbles();
+
+	// Обновление анимаций TWEEN
+	TWEEN.update();
 
 	renderer.render(scene, camera);
 }
