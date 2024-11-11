@@ -1,4 +1,3 @@
-// main2JS.js
 import * as THREE from 'three';
 import { FontLoader } from 'three/addons/loaders/FontLoader.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
@@ -69,11 +68,26 @@ const materials = {
 
 let isAnimating = false;
 let font;
-let model;
+let model; // Здесь мы объявляем переменную model для хранения загруженной модели коробки
 const boxes = [];
 const labels = [];
 const textMeshes = [];
-let values = [];
+
+// Функция для генерации случайных значений
+function generateRandomValues(count, min = 1, max = 100) {
+	const arr = [];
+	for (let i = 0; i < count; i++) {
+		arr.push(Math.floor(Math.random() * (max - min + 1)) + min);
+	}
+	return arr;
+}
+
+// Определяем количество коробок
+const numBoxes = 8;
+
+// Инициализируем массив значений случайными числами
+let values = generateRandomValues(numBoxes);
+
 let animations = [];
 let currentStep = 0;
 let isTransparent = true;
@@ -186,9 +200,9 @@ fontLoader.load(
 	'https://threejs.org/examples/fonts/helvetiker_regular.typeface.json',
 	function (loadedFont) {
 		font = loadedFont;
-		createBoxes();
-		// Создаем фоновый пузырь
-		createBackgroundBubbles();
+
+		// Загружаем модель коробки и пузыря перед созданием сцен
+		loadModels();
 	}
 );
 
@@ -205,6 +219,22 @@ bubbleSortLoader.load(
 		console.error(error);
 	}
 );
+
+// Загрузка модели коробки и создание сцены после загрузки
+function loadModels() {
+	loader.load(
+		'model/box1.glb',
+		function (gltf) {
+			model = gltf.scene;
+			createBoxes(); // Создаем коробки после загрузки модели
+			createBackgroundBubbles(); // Создаем фоновый пузырь
+		},
+		undefined,
+		function (error) {
+			console.error(error);
+		}
+	);
+}
 
 function applyMaterial(box, material) {
 	box.traverse(function (node) {
@@ -242,63 +272,46 @@ function addLabel(value, box, textSize = 0.7) {
 	textMesh.name = 'TextMesh';
 
 	box.add(textMesh);
+
+	// Сохраняем значение в userData для дальнейшего использования
+	box.userData.value = value;
 }
 
 function createBoxes() {
-	loader.load(
-		'model/box1.glb',
-		function (gltf) {
-			model = gltf.scene;
+	const numBoxes = values.length; // Устанавливаем количество коробок равным длине массива
+	const spacing = 3.5;
+	const startX = -((numBoxes - 1) * spacing) / 2;
 
-			const numBoxes = 8;
-			const maxValue = 999;
-			const spacing = 3.5;
-			const startX = -((numBoxes - 1) * spacing) / 2;
+	for (let i = 0; i < numBoxes; i++) {
+		const value = values[i];
+		const box = model.clone();
+		box.position.set(startX + i * spacing, 0, 0);
 
-			for (let i = 0; i < numBoxes; i++) {
-				const value = Math.floor(Math.random() * maxValue) + 1;
-				values.push(value);
-				const box = model.clone();
-				box.position.set(startX + i * spacing, 0, 0);
+		const scaleFactor = 1;
+		box.scale.set(scaleFactor, scaleFactor, scaleFactor);
 
-				const scaleFactor = 1;
-				box.scale.set(scaleFactor, scaleFactor, scaleFactor);
+		applyMaterial(box, materials.default);
+		box.castShadow = true;
+		box.receiveShadow = true;
+		scene.add(box);
 
-				applyMaterial(box, materials['default']);
-				box.castShadow = true;
-				box.receiveShadow = true;
-				scene.add(box);
+		addLabel(value, box);
 
-				addLabel(value, box);
+		boxes.push(box);
+	}
 
-				boxes.push(box);
-			}
+	// Вызов функции обновления блока кода
+	updateCodeBlock();
 
-			updateCodeBlock();
-			createBubbleSortAnimations();
-			animateScene();
-		},
-		undefined,
-		function (error) {
-			console.error(error);
-		}
-	);
+	createBubbleSortAnimations();
+	animateScene();
 }
 
 function updateCodeBlock() {
-	const codeBlock = document.getElementById('codeBlock');
-	const arrayValues = boxes.map((box) => {
-		const labelMesh = box.children.find((child) => child.name === 'TextMesh');
-		return labelMesh ? labelMesh.geometry.parameters.text : '0';
-	});
-	const arrayInit = arrayValues.map((val) => `<span class="value">${val}</span>`).join(', ');
-	const arrayInitLine = `<span class="type">int</span> <span class="variable">array</span>[] = {${arrayInit}};`;
-	const codeLines = codeBlock.innerHTML.split('\n');
-	const arrayLineIndex = codeLines.findIndex((line) => line.includes('int array[]'));
-	if (arrayLineIndex !== -1) {
-		codeLines[arrayLineIndex] = arrayInitLine;
-		codeBlock.innerHTML = codeLines.join('\n');
-	}
+	const codeBlock = document.getElementById('array');
+	const arrayValues = values.map((val) => `<span class="value">${val}</span>`).join(', ');
+	const arrayInitLine = `<span class="type">int</span> <span class="variable">array</span>[] = {${arrayValues}};`;
+	codeBlock.innerHTML = arrayInitLine;
 }
 
 function createBubbleSortAnimations() {
@@ -367,9 +380,18 @@ function playAnimations() {
 
 			// Обновляем массив boxes после завершения анимации
 			animateBubbleSwap(boxA, boxB, i, j, duration, () => {
+				// Обменяем местами ссылки в массиве boxes
 				[boxes[i], boxes[j]] = [boxes[j], boxes[i]];
 
+				// Обменяем значения в массиве values
+				[values[i], values[j]] = [values[j], values[i]];
+
+				// Обновим значения в коробках
+				updateBoxLabel(boxes[i]);
+				updateBoxLabel(boxes[j]);
+
 				resetBoxes([i, j]);
+				// Обновляем блок кода после обмена
 				updateCodeBlock();
 				animationIndex++;
 				nextAnimation();
@@ -437,12 +459,11 @@ function animateBubbleSwap(boxA, boxB, indexA, indexB, duration, onComplete) {
 	bubbleGroup.add(boxA);
 
 	// Центрируем коробку внутри пузыря
-	// Вычисляем размеры коробки и пузыря
 	const boxBBox = new THREE.Box3().setFromObject(boxA);
 	const boxCenter = boxBBox.getCenter(new THREE.Vector3());
 	boxA.position.sub(boxCenter); // Центрируем коробку относительно (0,0,0)
 
-	// Поднимаем коробку вверх, чтобы она была в центре пузыря по вертикали
+	// Вычисляем вертикальное смещение
 	const bubbleBBox = new THREE.Box3().setFromObject(bubble);
 	const bubbleHeight = bubbleBBox.max.y - bubbleBBox.min.y;
 	const boxHeight = boxBBox.max.y - boxBBox.min.y;
@@ -624,6 +645,8 @@ function animateScene() {
 
 	renderer.render(scene, camera);
 }
+
+// Начинаем анимацию сцены
 animateScene();
 
 function resetScene() {
@@ -633,7 +656,8 @@ function resetScene() {
 		scene.remove(box);
 	});
 	boxes.length = 0;
-	values.length = 0;
+	// Генерация новых случайных значений
+	values = generateRandomValues(numBoxes);
 	animations.length = 0;
 
 	currentStep = 0;
@@ -642,6 +666,8 @@ function resetScene() {
 	document.getElementById('startButton').style.display = 'block';
 
 	createBoxes();
+	// Вызов функции обновления блока кода после создания новых коробок
+	updateCodeBlock();
 }
 
 function toggleOpacity() {
@@ -669,3 +695,39 @@ startButton.addEventListener('click', () => {
 
 const resetButton = document.getElementById('resetButton');
 resetButton.addEventListener('click', resetScene);
+
+// Функция для обновления текста на коробке
+function updateBoxLabel(box) {
+	const textMesh = box.children.find((child) => child.name === 'TextMesh');
+	if (textMesh) {
+		// Удаляем старый текст
+		box.remove(textMesh);
+
+		// Создаем новый текст с обновленным значением
+		const newValue = box.userData.value;
+		const textGeometry = new TextGeometry(newValue.toString(), {
+			font: font,
+			size: 0.7,
+			height: 0.05,
+			curveSegments: 12,
+			bevelEnabled: false,
+		});
+
+		textGeometry.computeBoundingBox();
+		const center = textGeometry.boundingBox.getCenter(new THREE.Vector3());
+		textGeometry.translate(-center.x, -center.y, -center.z);
+
+		const textMaterial = new THREE.MeshPhongMaterial({
+			color: 0x000000,
+			side: THREE.DoubleSide,
+		});
+		const newTextMesh = new THREE.Mesh(textGeometry, textMaterial);
+		newTextMesh.castShadow = true;
+		newTextMesh.receiveShadow = true;
+
+		newTextMesh.position.set(0, 0.2, 0);
+		newTextMesh.name = 'TextMesh';
+
+		box.add(newTextMesh);
+	}
+}
