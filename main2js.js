@@ -1,11 +1,11 @@
-import * as THREE from 'three';
-import { FontLoader } from 'three/addons/loaders/FontLoader.js';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
+import * as THREE from './libs/three/three.module.js';
+import { FontLoader } from './jsm/loaders/FontLoader.js';
+import { GLTFLoader } from './jsm/loaders/GLTFLoader.js';
+import { TextGeometry } from './jsm/geometries/TextGeometry.js';
 
 // Подключаем Cannon.js для физики
-import * as CANNON from 'https://cdn.jsdelivr.net/npm/cannon-es@0.20.0/dist/cannon-es.js';
-import * as TWEEN from 'https://cdnjs.cloudflare.com/ajax/libs/tween.js/18.6.4/tween.esm.js';
+import * as CANNON from './cannon.js';
+import * as TWEEN from './tween.js';
 
 const scene = new THREE.Scene();
 
@@ -196,15 +196,12 @@ function animateBackgroundBubbles() {
 }
 
 const fontLoader = new FontLoader();
-fontLoader.load(
-	'https://threejs.org/examples/fonts/helvetiker_regular.typeface.json',
-	function (loadedFont) {
-		font = loadedFont;
+fontLoader.load('./fonts/helvetiker_bold.typeface.json', function (loadedFont) {
+	font = loadedFont;
 
-		// Загружаем модель коробки и пузыря перед созданием сцен
-		loadModels();
-	}
-);
+	// Загружаем модель коробки и пузыря перед созданием сцен
+	loadModels();
+});
 
 const loader = new GLTFLoader();
 
